@@ -1,5 +1,13 @@
 # PCT Planner
 
+> [!important]
+>
+> RC2026_MAP 的 PCD 点云文件在百度网盘：
+>
+> 链接: https://pan.baidu.com/s/192W4uDKmPrswztege8Sm-A?pwd=5iff 提取码: 5iff
+>
+> 位于 `assets/PCD/map.pcd`
+
 ## Overview
 
 This is an implementation of paper **Efficient Global Navigational Planning in 3-D Structures Based on Point Cloud Tomography** (accepted by TMECH).
