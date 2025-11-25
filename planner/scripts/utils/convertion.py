@@ -1,9 +1,9 @@
 import numpy as np
 
 
-def transTrajGrid2Map(grid_dim, center, resolution, traj_grid):
+def transTrajGrid2Map(grid_dim, center, resolution, traj_grid, height=0.4):
     offset = np.array([grid_dim[1] // 2, grid_dim[0] // 2, 0])
-    center_ = np.array([center[1], center[0], 0.5])
+    center_ = np.array([center[1], center[0], height])
 
     traj_grid = (traj_grid - offset) * resolution + center_
 

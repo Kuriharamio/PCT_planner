@@ -44,6 +44,7 @@ class TomogramPlanner(object):
             self.slice_dh = float(data_dict['slice_dh'])
             self.map_dim = [tomogram.shape[2], tomogram.shape[3]]
             self.offset = np.array([int(self.map_dim[0] / 2), int(self.map_dim[1] / 2)], dtype=np.int32)
+            print(f" {self.n_slice=}\n {self.slice_dh=}\n {self.slice_h0=}\n {self.offset=}\n")
 
         trav = tomogram[0]
         trav_gx = tomogram[1]
@@ -54,7 +55,7 @@ class TomogramPlanner(object):
         elev_c = np.nan_to_num(elev_c, nan=1e6)
 
         self.initPlanner(trav, trav_gx, trav_gy, elev_g, elev_c)
-        
+
     def initPlanner(self, trav, trav_gx, trav_gy, elev_g, elev_c):
         diff_t = trav[1:] - trav[:-1]
         diff_g = np.abs(elev_g[1:] - elev_g[:-1])
@@ -68,7 +69,7 @@ class TomogramPlanner(object):
         mask_t = diff_t > 8.0
         mask_g = (diff_g < 0.1) & (~np.isnan(elev_g[:-1]))
         gateway_dn[1:] = np.logical_and(mask_t, mask_g)
-        
+
         gateway = np.zeros_like(trav, dtype=np.int32)
         gateway[gateway_up] = 2
         gateway[gateway_dn] = -2
@@ -76,6 +77,7 @@ class TomogramPlanner(object):
         self.planner = ele_planner.OfflineElePlanner(
             max_heading_rate=self.max_heading_rate, use_quintic=self.use_quintic
         )
+
         self.planner.init_map(
             20, 15, self.resolution, self.n_slice, 0.2,
             trav.reshape(-1, trav.shape[-1]).astype(np.double),
@@ -86,9 +88,11 @@ class TomogramPlanner(object):
             -trav_gx.reshape(-1, trav_gx.shape[-1]).astype(np.double)
         )
 
-    def plan(self, start_pos, end_pos):
+    def plan(self, start_pos, end_pos, start_layer=0, end_layer=0, robot_height=0.5):
         # TODO: calculate slice index. By default the start and end pos are all at slice 0
+        self.start_idx[0] = start_layer
         self.start_idx[1:] = self.pos2idx(start_pos)
+        self.end_idx[0] = end_layer
         self.end_idx[1:] = self.pos2idx(end_pos)
 
         self.planner.plan(self.start_idx, self.end_idx, True)
@@ -113,12 +117,20 @@ class TomogramPlanner(object):
         traj = np.concatenate([traj_raw, layers.reshape(-1, 1)], axis=-1)
         y_idx = (traj.shape[-1] - 1) // 2
         traj_3d = np.stack([traj[:, 0], traj[:, y_idx], heights / self.resolution], axis=1)
-        traj_3d = transTrajGrid2Map(self.map_dim, self.center, self.resolution, traj_3d)
+        traj_3d = transTrajGrid2Map(self.map_dim, self.center, self.resolution, traj_3d, height=robot_height)
 
         return traj_3d
-    
+
     def pos2idx(self, pos):
         pos = pos - self.center
         idx = np.round(pos / self.resolution).astype(np.int32) + self.offset
         idx = np.array([idx[1], idx[0]], dtype=np.float32)
         return idx
+
+    def height2layer(self, height):
+        """
+        Convert actual height to layer index
+        """
+        layer = np.round((height - self.slice_h0) / self.slice_dh).astype(np.int32)
+        print(f" {height=}\n {layer=}\n")
+        return np.clip(layer, 0, self.n_slice - 1)
